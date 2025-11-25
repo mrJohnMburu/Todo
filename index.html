@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Focus Todos</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app" aria-live="polite">
+      <header class="app__header">
+        <div class="tabs" role="tablist" aria-label="Task categories">
+          <button class="tab" role="tab" aria-selected="true" data-tab="work">Work</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="personal">Personal</button>
+        </div>
+        <div class="app__meta">
+          <span class="app__badge" data-counter>0 tasks</span>
+          <button class="muted-link" id="resetData" type="button">Reset data</button>
+          <div class="user-menu">
+            <button id="userMenuButton" class="user-menu__trigger" aria-expanded="false">
+              <span data-user-label>Guest mode</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" role="presentation" aria-hidden="true">
+                <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              </svg>
+            </button>
+            <div class="user-menu__panel" id="userMenuPanel" hidden>
+              <p class="user-menu__greeting" data-user-email>Not signed in</p>
+              <button class="user-menu__item" type="button" data-menu="sync">Sync now</button>
+              <button class="user-menu__item" type="button" data-menu="signin">Sign in</button>
+              <button class="user-menu__item" type="button" data-menu="signout">Sign out</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section class="card">
+        <form id="taskForm" class="task-form" autocomplete="off">
+          <label class="sr-only" for="newTask">Task title</label>
+          <input
+            id="newTask"
+            name="task"
+            type="text"
+            placeholder="Add a Work task"
+            maxlength="120"
+            required
+          />
+          <button type="submit">Add</button>
+        </form>
+
+        <div class="controls">
+          <label class="toggle">
+            <input id="showCompleted" type="checkbox" />
+            <span>Show completed</span>
+          </label>
+          <span class="shortcut-hint" aria-live="off">Press "n" to add quickly</span>
+        </div>
+
+        <ul id="taskList" class="tasks" aria-live="polite"></ul>
+        <p class="empty" data-empty>Everything is clear here. Add your first task!</p>
+      </section>
+    </main>
+
+    <div class="modal" id="authModal" hidden aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="modal__dialog">
+        <button class="modal__close" type="button" data-close-auth aria-label="Close">&times;</button>
+        <h2>Sign in to sync tasks</h2>
+        <p class="modal__subtitle">Reuse your Workout app credentials to sync Work and Personal tasks.</p>
+
+        <form id="signInForm" class="auth-form">
+          <h3>Sign in</h3>
+          <label>Email<input type="email" name="email" required /></label>
+          <label>Password<input type="password" name="password" minlength="6" required /></label>
+          <button type="submit">Sign in</button>
+        </form>
+
+        <form id="signUpForm" class="auth-form">
+          <h3>Create account</h3>
+          <label>Email<input type="email" name="email" required /></label>
+          <label>Password<input type="password" name="password" minlength="6" required /></label>
+          <button type="submit">Create account</button>
+        </form>
+
+        <button id="continueGuest" class="ghost-button" type="button">Continue as guest</button>
+      </div>
+    </div>
+
+    <div class="toast" data-toast hidden></div>
+
+    <template id="taskTemplate">
+      <li class="task">
+        <label class="task__content">
+          <input type="checkbox" />
+          <span class="task__title"></span>
+        </label>
+        <button class="icon-button" type="button" aria-label="Delete task">✕</button>
+      </li>
+    </template>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="firebase-auth.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
