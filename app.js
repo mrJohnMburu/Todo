@@ -13,6 +13,9 @@
     emptyState: document.querySelector('[data-empty]'),
     counterBadge: document.querySelector('[data-counter]'),
     resetButton: document.getElementById('resetData'),
+    statsButton: document.getElementById('statsButton'),
+    statsModal: document.getElementById('statsModal'),
+    closeStatsButtons: document.querySelectorAll('[data-close-stats]'),
     userLabel: document.querySelector('[data-user-label]'),
     userEmail: document.querySelector('[data-user-email]'),
     userMenuButton: document.getElementById('userMenuButton'),
@@ -41,6 +44,7 @@
   let unsubscribeRemote = null;
   let toastTimeout = null;
   let pendingGuestSnapshot = state.tasks.map((task) => ({ ...task }));
+  let draggedTaskId = null;
 
   function loadState() {
     try {
@@ -119,6 +123,8 @@
       const deleteBtn = fragment.querySelector('.icon-button');
 
       fragment.classList.toggle('completed', task.completed);
+      fragment.setAttribute('draggable', 'true');
+      fragment.dataset.taskId = task.id;
       checkbox.checked = task.completed;
       checkbox.setAttribute(
         'aria-label',
@@ -128,6 +134,11 @@
 
       checkbox.addEventListener('change', () => toggleTask(task.id));
       deleteBtn.addEventListener('click', () => deleteTask(task.id));
+      
+      fragment.addEventListener('dragstart', handleDragStart);
+      fragment.addEventListener('dragend', handleDragEnd);
+      fragment.addEventListener('dragover', handleDragOver);
+      fragment.addEventListener('drop', handleDrop);
 
       ui.taskList.appendChild(fragment);
     });
@@ -217,6 +228,76 @@
       }
     }
     clearLocalState();
+  }
+
+  function handleDragStart(event) {
+    draggedTaskId = event.currentTarget.dataset.taskId;
+    event.currentTarget.classList.add('dragging');
+  }
+
+  function handleDragEnd(event) {
+    event.currentTarget.classList.remove('dragging');
+    document.querySelectorAll('.drag-over').forEach((el) => el.classList.remove('drag-over'));
+  }
+
+  function handleDragOver(event) {
+    event.preventDefault();
+    const afterElement = event.currentTarget;
+    if (afterElement.dataset.taskId !== draggedTaskId) {
+      afterElement.classList.add('drag-over');
+    }
+  }
+
+  function handleDrop(event) {
+    event.preventDefault();
+    const dropTarget = event.currentTarget;
+    dropTarget.classList.remove('drag-over');
+    
+    if (!draggedTaskId || draggedTaskId === dropTarget.dataset.taskId) return;
+
+    const draggedIndex = state.tasks.findIndex((t) => t.id === draggedTaskId);
+    const dropIndex = state.tasks.findIndex((t) => t.id === dropTarget.dataset.taskId);
+    
+    if (draggedIndex === -1 || dropIndex === -1) return;
+
+    const [draggedTask] = state.tasks.splice(draggedIndex, 1);
+    state.tasks.splice(dropIndex, 0, draggedTask);
+    
+    persist();
+    render();
+    
+    if (currentUser && firebaseApi && firebaseApi.isReady()) {
+      firebaseApi.upsertTasks(currentUser.uid, state.tasks).catch((error) => {
+        console.error('Reorder sync failed', error);
+      });
+    }
+  }
+
+  function openStatsModal() {
+    if (!ui.statsModal) return;
+    
+    const workTasks = state.tasks.filter((t) => t.tab === 'work');
+    const workDone = workTasks.filter((t) => t.completed).length;
+    const personalTasks = state.tasks.filter((t) => t.tab === 'personal');
+    const personalDone = personalTasks.filter((t) => t.completed).length;
+    const totalTasks = state.tasks.length;
+    const totalDone = workDone + personalDone;
+    const completionRate = totalTasks > 0 ? Math.round((totalDone / totalTasks) * 100) : 0;
+    
+    document.querySelector('[data-stat="work-total"]').textContent = workTasks.length;
+    document.querySelector('[data-stat="work-done"]').textContent = workDone;
+    document.querySelector('[data-stat="personal-total"]').textContent = personalTasks.length;
+    document.querySelector('[data-stat="personal-done"]').textContent = personalDone;
+    document.querySelector('[data-stat="completion-rate"]').textContent = `${completionRate}%`;
+    
+    ui.statsModal.hidden = false;
+    ui.statsModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeStatsModal() {
+    if (!ui.statsModal) return;
+    ui.statsModal.hidden = true;
+    ui.statsModal.setAttribute('aria-hidden', 'true');
   }
 
   function handleKeyboardShortcuts(event) {
@@ -405,6 +486,8 @@
     });
 
     ui.resetButton.addEventListener('click', clearData);
+    ui.statsButton.addEventListener('click', openStatsModal);
+    ui.closeStatsButtons.forEach((button) => button.addEventListener('click', closeStatsModal));
     document.addEventListener('keydown', handleKeyboardShortcuts);
 
     ui.userMenuButton.addEventListener('click', () => toggleUserMenu());

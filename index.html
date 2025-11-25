@@ -15,6 +15,7 @@
         </div>
         <div class="app__meta">
           <span class="app__badge" data-counter>0 tasks</span>
+          <button class="muted-link" id="statsButton" type="button">📊 Stats</button>
           <button class="muted-link" id="resetData" type="button">Reset data</button>
           <div class="user-menu">
             <button id="userMenuButton" class="user-menu__trigger" aria-expanded="false">
@@ -85,6 +86,35 @@
     </div>
 
     <div class="toast" data-toast hidden></div>
+
+    <div class="modal" id="statsModal" hidden aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="modal__dialog stats-dialog">
+        <button class="modal__close" type="button" data-close-stats aria-label="Close">&times;</button>
+        <h2>📊 Your Progress</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" data-stat="work-total">0</div>
+            <div class="stat-label">Work Tasks</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" data-stat="work-done">0</div>
+            <div class="stat-label">Work Completed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" data-stat="personal-total">0</div>
+            <div class="stat-label">Personal Tasks</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" data-stat="personal-done">0</div>
+            <div class="stat-label">Personal Completed</div>
+          </div>
+          <div class="stat-card stat-card--full">
+            <div class="stat-value" data-stat="completion-rate">0%</div>
+            <div class="stat-label">Overall Completion Rate</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <template id="taskTemplate">
       <li class="task">
