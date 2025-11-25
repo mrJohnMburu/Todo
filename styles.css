@@ -34,15 +34,16 @@ body {
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
 .app__meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  font-size: 0.92rem;
+  gap: 8px;
+  font-size: 0.88rem;
   color: var(--muted);
 }
 
@@ -102,9 +103,11 @@ body {
 .app__badge {
   background: var(--accent-muted);
   color: var(--accent);
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 999px;
   font-weight: 600;
+  white-space: nowrap;
+  font-size: 0.85rem;
 }
 
 .muted-link {
@@ -363,6 +366,29 @@ body {
 }
 
 @media (max-width: 600px) {
+  .app {
+    padding: 24px 16px 96px;
+  }
+
+  .app__header {
+    gap: 12px;
+  }
+
+  .app__meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .tabs {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .tab {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+  }
+
   .task-form {
     flex-direction: column;
   }
@@ -375,5 +401,14 @@ body {
   .controls {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .muted-link {
+    font-size: 0.85rem;
+  }
+
+  .user-menu__trigger {
+    font-size: 0.85rem;
+    padding: 6px 10px;
   }
 }
