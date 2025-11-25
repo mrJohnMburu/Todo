@@ -1,11 +1,11 @@
 (function initTodoFirebase() {
   const firebaseConfig = {
-    apiKey: 'YOUR_FIREBASE_API_KEY',
-    authDomain: 'YOUR_FIREBASE_AUTH_DOMAIN',
-    projectId: 'YOUR_FIREBASE_PROJECT_ID',
-    storageBucket: 'YOUR_FIREBASE_STORAGE_BUCKET',
-    messagingSenderId: 'YOUR_FIREBASE_MESSAGING_SENDER_ID',
-    appId: 'YOUR_FIREBASE_APP_ID',
+    apiKey: 'AIzaSyDCqdKBWkaI0Fbkg_84vi0bI5sCIIWVDgM',
+    authDomain: 'workout-app-2f671.firebaseapp.com',
+    projectId: 'workout-app-2f671',
+    storageBucket: 'workout-app-2f671.firebasestorage.app',
+    messagingSenderId: '814111284861',
+    appId: '1:814111284861:web:f3d021d432654ed5acdb14',
   };
 
   const hasConfig = Object.values(firebaseConfig).every(
