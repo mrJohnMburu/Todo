@@ -372,21 +372,46 @@ body {
 
   .app__header {
     gap: 12px;
-  }
-
-  .app__meta {
-    width: 100%;
-    justify-content: space-between;
+    align-items: flex-start;
   }
 
   .tabs {
-    flex: 1;
-    min-width: 0;
+    order: 1;
+    width: 100%;
   }
 
   .tab {
-    padding: 8px 16px;
+    flex: 1;
+    padding: 10px 16px;
     font-size: 0.9rem;
+  }
+
+  .app__meta {
+    order: 2;
+    width: 100%;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .app__badge {
+    flex-shrink: 0;
+  }
+
+  .muted-link {
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+
+  .user-menu {
+    order: 3;
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .user-menu__trigger {
+    font-size: 0.85rem;
+    padding: 8px 12px;
   }
 
   .task-form {
@@ -401,14 +426,5 @@ body {
   .controls {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .muted-link {
-    font-size: 0.85rem;
-  }
-
-  .user-menu__trigger {
-    font-size: 0.85rem;
-    padding: 6px 10px;
   }
 }
