@@ -609,6 +609,7 @@
     event.preventDefault();
     const afterElement = event.currentTarget;
     if (afterElement.dataset.taskId !== draggedTaskId) {
+      document.querySelectorAll('.drag-over').forEach((el) => el.classList.remove('drag-over'));
       afterElement.classList.add('drag-over');
     }
   }
@@ -629,13 +630,31 @@
       (index) => state.tasks[index].id === dropTarget.dataset.taskId,
     );
 
-    if (typeof draggedGlobalIndex !== 'number' || typeof dropGlobalIndex !== 'number') return;
+    console.log('Drag drop debug:', {
+      draggedTaskId,
+      dropTaskId: dropTarget.dataset.taskId,
+      draggedGlobalIndex,
+      dropGlobalIndex,
+      visibleIndices,
+      totalTasks: state.tasks.length
+    });
+
+    if (typeof draggedGlobalIndex !== 'number' || typeof dropGlobalIndex !== 'number') {
+      console.warn('Invalid indices - drag aborted');
+      return;
+    }
 
     // Remove the dragged task
     const [draggedTask] = state.tasks.splice(draggedGlobalIndex, 1);
     
     // Recalculate drop position after removal
     const newDropIndex = draggedGlobalIndex < dropGlobalIndex ? dropGlobalIndex - 1 : dropGlobalIndex;
+    
+    console.log('Reordering:', {
+      draggedTaskTitle: draggedTask.title,
+      fromIndex: draggedGlobalIndex,
+      toIndex: newDropIndex
+    });
     
     // Insert at new position
     state.tasks.splice(newDropIndex, 0, draggedTask);
