@@ -326,11 +326,19 @@
       const importantBtn = fragment.querySelector('.icon-button--important');
       const deleteBtn = fragment.querySelector('[data-role="delete"]');
       const tagSelect = fragment.querySelector('.task__tag-select');
+      const dragHandle = fragment.querySelector('[data-drag-handle]');
 
       fragment.classList.toggle('completed', task.completed);
       fragment.classList.toggle('task--important', task.important);
       fragment.setAttribute('draggable', state.sortImportant ? 'false' : 'true');
+      fragment.draggable = !state.sortImportant;
       fragment.dataset.taskId = task.id;
+      if (dragHandle) {
+        dragHandle.classList.toggle('task__drag-handle--disabled', state.sortImportant);
+        dragHandle.title = state.sortImportant
+          ? 'Disable "Important first" to reorder'
+          : 'Drag to reorder';
+      }
       checkbox.checked = task.completed;
       checkbox.setAttribute(
         'aria-label',
