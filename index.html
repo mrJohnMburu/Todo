@@ -53,6 +53,10 @@
             <input id="showCompleted" type="checkbox" />
             <span>Show completed</span>
           </label>
+          <label class="toggle">
+            <input id="sortImportant" type="checkbox" />
+            <span>Important first</span>
+          </label>
           <span class="shortcut-hint" aria-live="off">Press "n" to add quickly</span>
         </div>
 
@@ -122,7 +126,8 @@
           <input type="checkbox" />
           <span class="task__title"></span>
         </label>
-        <button class="icon-button" type="button" aria-label="Delete task">✕</button>
+        <button class="icon-button icon-button--important" type="button" aria-pressed="false" aria-label="Mark task as important">☆</button>
+        <button class="icon-button" data-role="delete" type="button" aria-label="Delete task">✕</button>
       </li>
     </template>
 

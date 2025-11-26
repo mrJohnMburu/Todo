@@ -207,6 +207,7 @@ body {
   margin: 18px 0;
   color: var(--muted);
   font-size: 0.9rem;
+  flex-wrap: wrap;
 }
 
 .toggle {
@@ -243,6 +244,16 @@ body {
   box-shadow: 0 2px 8px rgba(255, 107, 90, 0.08);
 }
 
+.task--important {
+  border-color: var(--accent);
+  background: #fff7f3;
+}
+
+.task--important .task__title {
+  font-weight: 600;
+  color: var(--accent);
+}
+
 .task__content {
   display: flex;
   align-items: center;
@@ -276,6 +287,15 @@ body {
 }
 
 .icon-button:hover {
+  color: var(--accent);
+}
+
+.icon-button--important {
+  font-size: 1.2rem;
+  color: var(--muted);
+}
+
+.icon-button--important[aria-pressed='true'] {
   color: var(--accent);
 }
 

@@ -10,6 +10,7 @@
     taskForm: document.getElementById('taskForm'),
     newTaskInput: document.getElementById('newTask'),
     showCompletedInput: document.getElementById('showCompleted'),
+    sortImportantInput: document.getElementById('sortImportant'),
     emptyState: document.querySelector('[data-empty]'),
     counterBadge: document.querySelector('[data-counter]'),
     resetButton: document.getElementById('resetData'),
@@ -37,6 +38,7 @@
     activeTab: 'work',
     tasks: [],
     showCompleted: false,
+    sortImportant: false,
   };
 
   let state = loadState();
@@ -46,14 +48,28 @@
   let pendingGuestSnapshot = state.tasks.map((task) => ({ ...task }));
   let draggedTaskId = null;
 
+  function normalizeTask(task) {
+    if (!task || typeof task !== 'object') return null;
+    return {
+      ...task,
+      tab: task.tab === 'personal' ? 'personal' : 'work',
+      completed: Boolean(task.completed),
+      important: Boolean(task.important),
+    };
+  }
+
   function loadState() {
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
       if (!stored) return { ...defaultState };
+      const storedTasks = Array.isArray(stored.tasks)
+        ? stored.tasks.map(normalizeTask).filter(Boolean)
+        : [];
       return {
         activeTab: stored.activeTab || 'work',
-        tasks: Array.isArray(stored.tasks) ? stored.tasks : [],
+        tasks: storedTasks,
         showCompleted: typeof stored.showCompleted === 'boolean' ? stored.showCompleted : false,
+        sortImportant: typeof stored.sortImportant === 'boolean' ? stored.sortImportant : false,
       };
     } catch (error) {
       console.warn('Unable to parse saved tasks', error);
@@ -113,17 +129,22 @@
     ui.showCompletedInput.checked = state.showCompleted;
 
     const tasksInTab = state.tasks.filter((task) => (task.tab || 'work') === state.activeTab);
-    const visibleTasks = tasksInTab.filter((task) => (state.showCompleted ? true : !task.completed));
+    const orderedTasks = state.sortImportant
+      ? [...tasksInTab].sort((a, b) => Number(b.important) - Number(a.important))
+      : tasksInTab;
+    const visibleTasks = orderedTasks.filter((task) => (state.showCompleted ? true : !task.completed));
 
     ui.taskList.innerHTML = '';
     visibleTasks.forEach((task) => {
       const fragment = ui.taskTemplate.content.firstElementChild.cloneNode(true);
       const checkbox = fragment.querySelector('input[type="checkbox"]');
       const titleEl = fragment.querySelector('.task__title');
-      const deleteBtn = fragment.querySelector('.icon-button');
+      const importantBtn = fragment.querySelector('.icon-button--important');
+      const deleteBtn = fragment.querySelector('[data-role="delete"]');
 
       fragment.classList.toggle('completed', task.completed);
-      fragment.setAttribute('draggable', 'true');
+      fragment.classList.toggle('task--important', task.important);
+      fragment.setAttribute('draggable', state.sortImportant ? 'false' : 'true');
       fragment.dataset.taskId = task.id;
       checkbox.checked = task.completed;
       checkbox.setAttribute(
@@ -131,14 +152,25 @@
         `Mark ${task.title} as ${task.completed ? 'incomplete' : 'complete'}`,
       );
       titleEl.textContent = task.title;
+      importantBtn.setAttribute('aria-pressed', String(task.important));
+      importantBtn.textContent = task.important ? '★' : '☆';
+      importantBtn.setAttribute(
+        'aria-label',
+        `${task.important ? 'Remove' : 'Mark'} ${task.title} ${
+          task.important ? 'from' : 'as'
+        } important`,
+      );
 
       checkbox.addEventListener('change', () => toggleTask(task.id));
+      importantBtn.addEventListener('click', () => toggleImportant(task.id));
       deleteBtn.addEventListener('click', () => deleteTask(task.id));
       
-      fragment.addEventListener('dragstart', handleDragStart);
-      fragment.addEventListener('dragend', handleDragEnd);
-      fragment.addEventListener('dragover', handleDragOver);
-      fragment.addEventListener('drop', handleDrop);
+      if (!state.sortImportant) {
+        fragment.addEventListener('dragstart', handleDragStart);
+        fragment.addEventListener('dragend', handleDragEnd);
+        fragment.addEventListener('dragover', handleDragOver);
+        fragment.addEventListener('drop', handleDrop);
+      }
 
       ui.taskList.appendChild(fragment);
     });
@@ -149,6 +181,9 @@
       ? `No ${state.activeTab} tasks${state.showCompleted ? '' : ' yet'}.`
       : '';
 
+    if (ui.sortImportantInput) {
+      ui.sortImportantInput.checked = state.sortImportant;
+    }
     updateCounter(tasksInTab);
   }
 
@@ -175,8 +210,10 @@
       title: trimmed,
       tab: state.activeTab,
       completed: false,
+      important: false,
       createdAt: new Date().toISOString(),
     };
+
     state.tasks = [newTask, ...state.tasks];
     persist();
     render();
@@ -194,6 +231,19 @@
     render();
     const changedTask = state.tasks.find((task) => task.id === id);
     if (changedTask) maybeSyncTask(changedTask);
+  }
+
+  function toggleImportant(id) {
+    let changedTask = null;
+    state.tasks = state.tasks.map((task) => {
+      if (task.id !== id) return task;
+      changedTask = { ...task, important: !task.important };
+      return changedTask;
+    });
+    if (!changedTask) return;
+    persist();
+    render();
+    maybeSyncTask(changedTask);
   }
 
   function deleteTask(id) {
@@ -238,6 +288,7 @@
   function handleDragEnd(event) {
     event.currentTarget.classList.remove('dragging');
     document.querySelectorAll('.drag-over').forEach((el) => el.classList.remove('drag-over'));
+    draggedTaskId = null;
   }
 
   function handleDragOver(event) {
@@ -250,6 +301,7 @@
 
   function handleDrop(event) {
     event.preventDefault();
+    if (state.sortImportant) return;
     const dropTarget = event.currentTarget;
     dropTarget.classList.remove('drag-over');
     
@@ -265,6 +317,7 @@
     
     persist();
     render();
+    draggedTaskId = null;
     
     if (currentUser && firebaseApi && firebaseApi.isReady()) {
       firebaseApi.upsertTasks(currentUser.uid, state.tasks).catch((error) => {
@@ -423,7 +476,7 @@
     unsubscribeRemote = firebaseApi.subscribeToTasks(
       user.uid,
       (tasks) => {
-        state.tasks = Array.isArray(tasks) ? tasks : [];
+        state.tasks = Array.isArray(tasks) ? tasks.map(normalizeTask).filter(Boolean) : [];
         persist();
         render();
       },
@@ -484,6 +537,15 @@
       persist();
       render();
     });
+
+    if (ui.sortImportantInput) {
+      ui.sortImportantInput.addEventListener('change', () => {
+        state.sortImportant = ui.sortImportantInput.checked;
+        persist();
+        render();
+        draggedTaskId = null;
+      });
+    }
 
     ui.resetButton.addEventListener('click', clearData);
     ui.statsButton.addEventListener('click', openStatsModal);
