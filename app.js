@@ -154,6 +154,32 @@
     }
   }
 
+  function isTaskInActiveTab(task) {
+    return (task.tab || 'work') === state.activeTab;
+  }
+
+  function matchesCompletionFilter(task) {
+    return state.showCompleted ? true : !task.completed;
+  }
+
+  function matchesTagFilter(task) {
+    return state.activeTagFilter === 'all' || (task.tagId || '') === state.activeTagFilter;
+  }
+
+  function isTaskVisible(task) {
+    return isTaskInActiveTab(task) && matchesCompletionFilter(task) && matchesTagFilter(task);
+  }
+
+  function getVisibleTaskIndices() {
+    const indices = [];
+    state.tasks.forEach((task, index) => {
+      if (isTaskVisible(task)) {
+        indices.push(index);
+      }
+    });
+    return indices;
+  }
+
   function populateTaskTagSelect(selectEl, selectedId) {
     if (!selectEl) return;
     const valueToUse = selectedId || '';
@@ -307,16 +333,13 @@
     ui.showCompletedInput.checked = state.showCompleted;
     syncGlobalTagControls();
 
-    const tasksInTab = state.tasks.filter((task) => (task.tab || 'work') === state.activeTab);
+    const tasksInTab = state.tasks.filter((task) => isTaskInActiveTab(task));
     const orderedTasks = state.sortImportant
       ? [...tasksInTab].sort((a, b) => Number(b.important) - Number(a.important))
       : tasksInTab;
-    const visibleTasks = orderedTasks.filter((task) => {
-      const matchesCompletion = state.showCompleted ? true : !task.completed;
-      const matchesTag =
-        state.activeTagFilter === 'all' || (task.tagId || '') === state.activeTagFilter;
-      return matchesCompletion && matchesTag;
-    });
+    const visibleTasks = orderedTasks.filter(
+      (task) => matchesCompletionFilter(task) && matchesTagFilter(task),
+    );
 
     ui.taskList.innerHTML = '';
     visibleTasks.forEach((task) => {
@@ -598,13 +621,17 @@
     
     if (!draggedTaskId || draggedTaskId === dropTarget.dataset.taskId) return;
 
-    const draggedIndex = state.tasks.findIndex((t) => t.id === draggedTaskId);
-    const dropIndex = state.tasks.findIndex((t) => t.id === dropTarget.dataset.taskId);
-    
-    if (draggedIndex === -1 || dropIndex === -1) return;
+    const visibleIndices = getVisibleTaskIndices();
+    const draggedIndex = visibleIndices.find((index) => state.tasks[index].id === draggedTaskId);
+    const dropIndex = visibleIndices.find(
+      (index) => state.tasks[index].id === dropTarget.dataset.taskId,
+    );
+
+    if (typeof draggedIndex !== 'number' || typeof dropIndex !== 'number') return;
 
     const [draggedTask] = state.tasks.splice(draggedIndex, 1);
-    state.tasks.splice(dropIndex, 0, draggedTask);
+    const adjustedIndex = draggedIndex < dropIndex ? dropIndex - 1 : dropIndex;
+    state.tasks.splice(adjustedIndex, 0, draggedTask);
     
     persist();
     render();
