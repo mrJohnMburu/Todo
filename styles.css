@@ -430,6 +430,7 @@ body {
   font-size: 1.5rem;
   cursor: pointer;
   color: var(--muted);
+  z-index: 10;
 }
 
 .modal__subtitle {
@@ -507,9 +508,15 @@ body {
 
 .tags-dialog {
   max-width: 520px;
-  max-height: 80vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.tags-dialog > h2,
+.tags-dialog > .modal__subtitle {
+  flex-shrink: 0;
 }
 
 .tag-list {
@@ -519,8 +526,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 300px;
   overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.tag-form {
+  flex-shrink: 0;
 }
 
 .tag-list__item {
