@@ -507,6 +507,9 @@ body {
 
 .tags-dialog {
   max-width: 520px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .tag-list {
@@ -516,6 +519,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .tag-list__item {
