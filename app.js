@@ -622,16 +622,23 @@
     if (!draggedTaskId || draggedTaskId === dropTarget.dataset.taskId) return;
 
     const visibleIndices = getVisibleTaskIndices();
-    const draggedIndex = visibleIndices.find((index) => state.tasks[index].id === draggedTaskId);
-    const dropIndex = visibleIndices.find(
+    const draggedGlobalIndex = visibleIndices.find(
+      (index) => state.tasks[index].id === draggedTaskId,
+    );
+    const dropGlobalIndex = visibleIndices.find(
       (index) => state.tasks[index].id === dropTarget.dataset.taskId,
     );
 
-    if (typeof draggedIndex !== 'number' || typeof dropIndex !== 'number') return;
+    if (typeof draggedGlobalIndex !== 'number' || typeof dropGlobalIndex !== 'number') return;
 
-    const [draggedTask] = state.tasks.splice(draggedIndex, 1);
-    const adjustedIndex = draggedIndex < dropIndex ? dropIndex - 1 : dropIndex;
-    state.tasks.splice(adjustedIndex, 0, draggedTask);
+    // Remove the dragged task
+    const [draggedTask] = state.tasks.splice(draggedGlobalIndex, 1);
+    
+    // Recalculate drop position after removal
+    const newDropIndex = draggedGlobalIndex < dropGlobalIndex ? dropGlobalIndex - 1 : dropGlobalIndex;
+    
+    // Insert at new position
+    state.tasks.splice(newDropIndex, 0, draggedTask);
     
     persist();
     render();
