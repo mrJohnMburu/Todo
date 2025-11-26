@@ -19,8 +19,9 @@ index.html
 styles.css        # layout, theme, animations
 assets/           # icons/placeholders
 ```
-- **State shape**: `{ activeTab: 'work' | 'personal', tasks: Task[] }`
-- **Task**: `{ id, title, note?, completed, tab, createdAt, due? }`
+- **State shape**: `{ activeTab: 'work' | 'personal', tasks: Task[], tags: Tag[], showCompleted, sortImportant, activeTagFilter }`
+- **Task**: `{ id, title, note?, completed, tab, createdAt, due?, important, tagId? }`
+- **Tag**: `{ id, name, color, createdAt }`
 - **Persistence**: store `state.tasks` JSON in `localStorage` under `todo-tabs-v1`.
 - **Sync bridge** (optional): when auth is enabled, load remote tasks into state, merge conflicts by timestamps, and push local changes to Firestore collections (`users/{uid}/tasks`).
 
@@ -33,8 +34,10 @@ assets/           # icons/placeholders
    - Keyboard: Enter adds task; `n` shortcut focuses the input.
 3. **Task List**
    - Checkbox to toggle completion, inline delete button.
-   - Filter: show/hide completed toggle.
-   - Empty-state message per tab.
+   - Filters: show/hide completed toggle, single-tag dropdown, "Important first" switch.
+   - Drag-and-drop reordering per tab (disabled while sorting by importance).
+   - Inline tag selector (one tag per task) with color-coded pills and a dedicated "Manage tags" modal.
+   - Empty-state message per tab and filter combo.
 4. **Responsive Layout**
    - Max width ~640px, centered card; stack gracefully on mobile.
 5. **Auth Modal (optional)**
@@ -48,6 +51,7 @@ assets/           # icons/placeholders
 ### Phase 2 – UX Polish
 - Add keyboard shortcuts, focus states, subtle animations, and empty states.
 - Harden accessibility (ARIA roles, skip-to-content, labels).
+- Layer in important-task sorting, stats modal, drag-and-drop ordering, and the tag management/filtering experience.
 
 ### Phase 3 – Optional Firebase Sync
 - Copy Firebase setup steps from `FIREBASE_SETUP.md` (Workout_app) into new `firebase-auth.js`.
@@ -73,14 +77,16 @@ assets/           # icons/placeholders
 - [ ] Add/complete/delete tasks in both tabs
 - [ ] Refresh page to confirm persistence
 - [ ] Toggle "show completed" and verify filtering per tab
+- [ ] Create/edit tags, assign them to tasks, and confirm tag filter updates the list
+- [ ] Star tasks, enable "Important first", and ensure drag-and-drop is disabled while sorting
 - [ ] Keyboard: `n` focuses input, Enter submits
 - [ ] Screen reader tab navigation reads labels correctly
 - [ ] Mobile viewport check (Chrome dev tools)
 - [ ] (Optional) Firebase sign-in/out, cross-device sync, and security rule enforcement
 
 ## 7. Future Enhancements
+- Multi-tag support or nested tag groups
 - Date-based sorting or due reminders
-- Drag-and-drop ordering per tab
 - PWA manifest + service worker for installable experience
 - Analytics event logging (optional)
 

@@ -93,6 +93,34 @@
       snapshot.docs.forEach((doc) => batch.delete(col.doc(doc.id)));
       return batch.commit();
     },
+    async saveTag(uid, tag) {
+      if (!ensureInitialized()) return noop();
+      const ref = db.collection('users').doc(uid).collection('tags').doc(tag.id);
+      return ref.set({ ...tag, updatedAt: new Date().toISOString() });
+    },
+    async deleteTag(uid, tagId) {
+      if (!ensureInitialized()) return noop();
+      const ref = db.collection('users').doc(uid).collection('tags').doc(tagId);
+      return ref.delete();
+    },
+    async upsertTags(uid, tags) {
+      if (!ensureInitialized() || !tags.length) return noop();
+      const batch = db.batch();
+      const col = db.collection('users').doc(uid).collection('tags');
+      tags.forEach((tag) => {
+        batch.set(col.doc(tag.id), { ...tag, updatedAt: new Date().toISOString() });
+      });
+      return batch.commit();
+    },
+    async clearTags(uid) {
+      if (!ensureInitialized()) return noop();
+      const col = db.collection('users').doc(uid).collection('tags');
+      const snapshot = await col.get();
+      if (snapshot.empty) return noop();
+      const batch = db.batch();
+      snapshot.docs.forEach((doc) => batch.delete(col.doc(doc.id)));
+      return batch.commit();
+    },
     subscribeToTasks(uid, onUpdate, onError) {
       if (!ensureInitialized()) {
         if (onError) onError(new Error('Firebase not configured'));
@@ -117,6 +145,22 @@
             return normalize;
           });
           onUpdate(tasks);
+        },
+        (error) => {
+          if (onError) onError(error);
+        },
+      );
+    },
+    subscribeToTags(uid, onUpdate, onError) {
+      if (!ensureInitialized()) {
+        if (onError) onError(new Error('Firebase not configured'));
+        return noopUnsubscribe();
+      }
+      const query = db.collection('users').doc(uid).collection('tags').orderBy('name');
+      return query.onSnapshot(
+        (snapshot) => {
+          const tags = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          onUpdate(tags);
         },
         (error) => {
           if (onError) onError(error);

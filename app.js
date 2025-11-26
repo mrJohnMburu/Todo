@@ -2,6 +2,7 @@
 (function initApp() {
   const STORAGE_KEY = 'two-tab-todo-v1';
   const firebaseApi = window.todoFirebase;
+  const TAG_COLORS = ['#FF6B5A', '#FFB347', '#FFD93D', '#6BD2DB', '#7C83FD', '#FF8FAB', '#B28DFF', '#4CAF50'];
 
   const ui = {
     tabs: document.querySelectorAll('.tab'),
@@ -11,6 +12,7 @@
     newTaskInput: document.getElementById('newTask'),
     showCompletedInput: document.getElementById('showCompleted'),
     sortImportantInput: document.getElementById('sortImportant'),
+    tagFilterSelect: document.getElementById('tagFilter'),
     emptyState: document.querySelector('[data-empty]'),
     counterBadge: document.querySelector('[data-counter]'),
     resetButton: document.getElementById('resetData'),
@@ -27,6 +29,14 @@
     signInForm: document.getElementById('signInForm'),
     signUpForm: document.getElementById('signUpForm'),
     continueGuest: document.getElementById('continueGuest'),
+    manageTagsButton: document.getElementById('manageTags'),
+    tagsModal: document.getElementById('tagsModal'),
+    closeTagsButtons: document.querySelectorAll('[data-close-tags]'),
+    tagList: document.querySelector('[data-tag-list]'),
+    tagForm: document.getElementById('tagForm'),
+    tagNameInput: document.getElementById('tagName'),
+    tagColorContainer: document.querySelector('[data-tag-colors]'),
+    taskTagSelect: document.getElementById('taskTag'),
     menuButtons: {
       sync: document.querySelector('[data-menu="sync"]'),
       signin: document.querySelector('[data-menu="signin"]'),
@@ -39,14 +49,31 @@
     tasks: [],
     showCompleted: false,
     sortImportant: false,
+    tags: [],
+    activeTagFilter: 'all',
   };
 
   let state = loadState();
   let currentUser = null;
   let unsubscribeRemote = null;
+  let unsubscribeTags = null;
   let toastTimeout = null;
-  let pendingGuestSnapshot = state.tasks.map((task) => ({ ...task }));
+  let pendingGuestTasks = state.tasks.map((task) => ({ ...task }));
+  let pendingGuestTags = state.tags.map((tag) => ({ ...tag }));
   let draggedTaskId = null;
+  let selectedTagColor = TAG_COLORS[0];
+
+  function normalizeTag(tag) {
+    if (!tag || typeof tag !== 'object') return null;
+    const name = String(tag.name || '').trim();
+    if (!name) return null;
+    return {
+      id: tag.id || uid(),
+      name,
+      color: typeof tag.color === 'string' ? tag.color : TAG_COLORS[0],
+      createdAt: tag.createdAt || new Date().toISOString(),
+    };
+  }
 
   function normalizeTask(task) {
     if (!task || typeof task !== 'object') return null;
@@ -55,6 +82,7 @@
       tab: task.tab === 'personal' ? 'personal' : 'work',
       completed: Boolean(task.completed),
       important: Boolean(task.important),
+      tagId: typeof task.tagId === 'string' ? task.tagId : null,
     };
   }
 
@@ -65,11 +93,16 @@
       const storedTasks = Array.isArray(stored.tasks)
         ? stored.tasks.map(normalizeTask).filter(Boolean)
         : [];
+      const storedTags = Array.isArray(stored.tags)
+        ? stored.tags.map(normalizeTag).filter(Boolean)
+        : [];
       return {
         activeTab: stored.activeTab || 'work',
         tasks: storedTasks,
         showCompleted: typeof stored.showCompleted === 'boolean' ? stored.showCompleted : false,
         sortImportant: typeof stored.sortImportant === 'boolean' ? stored.sortImportant : false,
+        tags: storedTags,
+        activeTagFilter: stored.activeTagFilter || 'all',
       };
     } catch (error) {
       console.warn('Unable to parse saved tasks', error);
@@ -83,6 +116,151 @@
     } catch (error) {
       console.warn('Unable to save tasks:', error);
     }
+  }
+
+  function getTagById(tagId) {
+    if (!tagId) return null;
+    return state.tags.find((tag) => tag.id === tagId) || null;
+  }
+
+  function getContrastingTextColor(hex) {
+    if (!hex || typeof hex !== 'string') return '#2D2520';
+    let normalized = hex.replace('#', '');
+    if (normalized.length === 3) {
+      normalized = normalized
+        .split('')
+        .map((char) => char + char)
+        .join('');
+    }
+    if (normalized.length !== 6) return '#2D2520';
+    const r = parseInt(normalized.slice(0, 2), 16) / 255;
+    const g = parseInt(normalized.slice(2, 4), 16) / 255;
+    const b = parseInt(normalized.slice(4, 6), 16) / 255;
+    const [rl, gl, bl] = [r, g, b].map((channel) =>
+      channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4),
+    );
+    const luminance = 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
+    return luminance > 0.6 ? '#2D2520' : '#FFF';
+  }
+
+  function applyTagColorToSelect(selectEl, tag) {
+    if (!selectEl) return;
+    if (tag) {
+      selectEl.style.setProperty('--tag-select-color', tag.color);
+      selectEl.style.setProperty('--tag-select-text', getContrastingTextColor(tag.color));
+    } else {
+      selectEl.style.removeProperty('--tag-select-color');
+      selectEl.style.removeProperty('--tag-select-text');
+    }
+  }
+
+  function populateTaskTagSelect(selectEl, selectedId) {
+    if (!selectEl) return;
+    const valueToUse = selectedId || '';
+    selectEl.innerHTML = '';
+    const noneOption = document.createElement('option');
+    noneOption.value = '';
+    noneOption.textContent = 'No tag';
+    selectEl.appendChild(noneOption);
+    state.tags.forEach((tag) => {
+      const option = document.createElement('option');
+      option.value = tag.id;
+      option.textContent = tag.name;
+      selectEl.appendChild(option);
+    });
+    selectEl.value = state.tags.some((tag) => tag.id === valueToUse) ? valueToUse : '';
+    applyTagColorToSelect(selectEl, getTagById(selectEl.value));
+  }
+
+  function populateTagFilterSelect() {
+    if (!ui.tagFilterSelect) return;
+    const currentValue = state.activeTagFilter;
+    ui.tagFilterSelect.innerHTML = '';
+    const allOption = document.createElement('option');
+    allOption.value = 'all';
+    allOption.textContent = 'All tags';
+    ui.tagFilterSelect.appendChild(allOption);
+    state.tags.forEach((tag) => {
+      const option = document.createElement('option');
+      option.value = tag.id;
+      option.textContent = tag.name;
+      ui.tagFilterSelect.appendChild(option);
+    });
+    const validValue = currentValue === 'all' || state.tags.some((tag) => tag.id === currentValue)
+      ? currentValue
+      : 'all';
+    if (state.activeTagFilter !== validValue) {
+      state.activeTagFilter = validValue;
+      persist();
+    }
+    ui.tagFilterSelect.value = validValue;
+  }
+
+  function renderTagList() {
+    if (!ui.tagList) return;
+    ui.tagList.innerHTML = '';
+    if (!state.tags.length) {
+      const empty = document.createElement('li');
+      empty.className = 'tag-list__empty';
+      empty.textContent = 'No tags yet. Add your first tag below.';
+      ui.tagList.appendChild(empty);
+      return;
+    }
+    state.tags.forEach((tag) => {
+      const item = document.createElement('li');
+      item.className = 'tag-list__item';
+      const info = document.createElement('div');
+      info.className = 'tag-list__info';
+      const dot = document.createElement('span');
+      dot.className = 'tag-dot';
+      dot.style.background = tag.color;
+      const name = document.createElement('span');
+      name.textContent = tag.name;
+      info.append(dot, name);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'icon-button';
+      deleteBtn.textContent = '✕';
+      deleteBtn.setAttribute('aria-label', `Delete ${tag.name} tag`);
+      deleteBtn.addEventListener('click', () => deleteTag(tag.id));
+
+      item.append(info, deleteBtn);
+      ui.tagList.appendChild(item);
+    });
+  }
+
+  function syncGlobalTagControls() {
+    populateTagFilterSelect();
+    populateTaskTagSelect(ui.taskTagSelect, ui.taskTagSelect?.value || '');
+    renderTagList();
+  }
+
+  function setSelectedTagColor(color) {
+    selectedTagColor = color;
+    if (!ui.tagColorContainer) return;
+    ui.tagColorContainer.querySelectorAll('.tag-color-chip').forEach((chip) => {
+      chip.setAttribute('aria-pressed', String(chip.dataset.color === color));
+    });
+  }
+
+  function renderTagColorPicker() {
+    if (!ui.tagColorContainer) return;
+    ui.tagColorContainer.innerHTML = '';
+    TAG_COLORS.forEach((color, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'tag-color-chip';
+      button.style.background = color;
+      button.dataset.color = color;
+       button.setAttribute('aria-label', `Select ${color} tag color`);
+      button.setAttribute('aria-pressed', String(index === 0));
+      button.addEventListener('click', () => {
+        setSelectedTagColor(color);
+      });
+      ui.tagColorContainer.appendChild(button);
+    });
+    setSelectedTagColor(selectedTagColor);
   }
 
   function uid() {
@@ -127,12 +305,18 @@
   function render() {
     updateTabsUI();
     ui.showCompletedInput.checked = state.showCompleted;
+    syncGlobalTagControls();
 
     const tasksInTab = state.tasks.filter((task) => (task.tab || 'work') === state.activeTab);
     const orderedTasks = state.sortImportant
       ? [...tasksInTab].sort((a, b) => Number(b.important) - Number(a.important))
       : tasksInTab;
-    const visibleTasks = orderedTasks.filter((task) => (state.showCompleted ? true : !task.completed));
+    const visibleTasks = orderedTasks.filter((task) => {
+      const matchesCompletion = state.showCompleted ? true : !task.completed;
+      const matchesTag =
+        state.activeTagFilter === 'all' || (task.tagId || '') === state.activeTagFilter;
+      return matchesCompletion && matchesTag;
+    });
 
     ui.taskList.innerHTML = '';
     visibleTasks.forEach((task) => {
@@ -141,6 +325,7 @@
       const titleEl = fragment.querySelector('.task__title');
       const importantBtn = fragment.querySelector('.icon-button--important');
       const deleteBtn = fragment.querySelector('[data-role="delete"]');
+      const tagSelect = fragment.querySelector('.task__tag-select');
 
       fragment.classList.toggle('completed', task.completed);
       fragment.classList.toggle('task--important', task.important);
@@ -162,6 +347,10 @@
       );
 
       checkbox.addEventListener('change', () => toggleTask(task.id));
+      populateTaskTagSelect(tagSelect, task.tagId || '');
+      tagSelect.addEventListener('change', (event) => {
+        updateTaskTag(task.id, event.target.value || null);
+      });
       importantBtn.addEventListener('click', () => toggleImportant(task.id));
       deleteBtn.addEventListener('click', () => deleteTask(task.id));
       
@@ -178,7 +367,9 @@
     const nothingToShow = visibleTasks.length === 0;
     ui.emptyState.hidden = !nothingToShow;
     ui.emptyState.textContent = nothingToShow
-      ? `No ${state.activeTab} tasks${state.showCompleted ? '' : ' yet'}.`
+      ? state.activeTagFilter === 'all'
+        ? `No ${state.activeTab} tasks${state.showCompleted ? '' : ' yet'}.`
+        : 'No tasks match this tag yet.'
       : '';
 
     if (ui.sortImportantInput) {
@@ -202,15 +393,34 @@
     });
   }
 
+  function maybeSyncTag(tag) {
+    if (!currentUser || !firebaseApi || !firebaseApi.isReady()) return;
+    firebaseApi.saveTag(currentUser.uid, tag).catch((error) => {
+      console.error('Tag sync failed', error);
+      showToast('Unable to sync tag right now.');
+    });
+  }
+
+  function maybeDeleteTagRemote(tagId) {
+    if (!currentUser || !firebaseApi || !firebaseApi.isReady()) return;
+    firebaseApi.deleteTag(currentUser.uid, tagId).catch((error) => {
+      console.error('Delete tag sync failed', error);
+      showToast('Unable to delete tag in cloud.');
+    });
+  }
+
   function addTask(title) {
     const trimmed = title.trim();
     if (!trimmed) return;
+    const selectedTagId = ui.taskTagSelect?.value || '';
+    const normalizedTagId = state.tags.some((tag) => tag.id === selectedTagId) ? selectedTagId : null;
     const newTask = {
       id: uid(),
       title: trimmed,
       tab: state.activeTab,
       completed: false,
       important: false,
+      tagId: normalizedTagId,
       createdAt: new Date().toISOString(),
     };
 
@@ -246,6 +456,64 @@
     maybeSyncTask(changedTask);
   }
 
+  function updateTaskTag(id, tagId) {
+    const normalizedTagId = state.tags.some((tag) => tag.id === tagId) ? tagId : null;
+    let changedTask = null;
+    state.tasks = state.tasks.map((task) => {
+      if (task.id !== id) return task;
+      changedTask = { ...task, tagId: normalizedTagId };
+      return changedTask;
+    });
+    if (!changedTask) return;
+    persist();
+    render();
+    maybeSyncTask(changedTask);
+  }
+
+  function addTag(name, color) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const exists = state.tags.some((tag) => tag.name.toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      showToast('Tag name already exists.');
+      return;
+    }
+    const newTag = {
+      id: uid(),
+      name: trimmed,
+      color,
+      createdAt: new Date().toISOString(),
+    };
+    state.tags = [...state.tags, newTag];
+    persist();
+    render();
+    maybeSyncTag(newTag);
+  }
+
+  function deleteTag(tagId) {
+    const tag = getTagById(tagId);
+    if (!tag) return;
+    const confirmed = window.confirm(
+      `Delete the "${tag.name}" tag? Tasks using it will lose their tag.`,
+    );
+    if (!confirmed) return;
+    state.tags = state.tags.filter((item) => item.id !== tagId);
+    state.tasks = state.tasks.map((task) =>
+      task.tagId === tagId ? { ...task, tagId: null } : task,
+    );
+    if (state.activeTagFilter === tagId) {
+      state.activeTagFilter = 'all';
+    }
+    persist();
+    render();
+    maybeDeleteTagRemote(tagId);
+    if (currentUser && firebaseApi && firebaseApi.isReady()) {
+      firebaseApi
+        .upsertTasks(currentUser.uid, state.tasks)
+        .catch((error) => console.error('Failed to sync tag removal for tasks', error));
+    }
+  }
+
   function deleteTask(id) {
     const task = state.tasks.find((item) => item.id === id);
     state.tasks = state.tasks.filter((taskItem) => taskItem.id !== id);
@@ -259,10 +527,22 @@
     }
   }
 
+  function handleTagFormSubmit(event) {
+    event.preventDefault();
+    if (!ui.tagNameInput) return;
+    const name = ui.tagNameInput.value;
+    addTag(name, selectedTagColor || TAG_COLORS[0]);
+    ui.tagForm.reset();
+    setSelectedTagColor(TAG_COLORS[0]);
+    ui.tagNameInput.focus();
+  }
+
   function clearLocalState() {
     state = { ...defaultState };
     persist();
     render();
+    pendingGuestTasks = [];
+    pendingGuestTags = [];
   }
 
   async function clearData() {
@@ -270,8 +550,11 @@
     if (!confirmed) return;
     if (currentUser && firebaseApi && firebaseApi.isReady()) {
       try {
-        await firebaseApi.clearTasks(currentUser.uid);
-        showToast('Cleared cloud tasks');
+        await Promise.all([
+          firebaseApi.clearTasks(currentUser.uid),
+          firebaseApi.clearTags(currentUser.uid),
+        ]);
+        showToast('Cleared cloud tasks and tags');
       } catch (error) {
         console.error('Failed to clear remote tasks', error);
         showToast('Unable to clear remote tasks');
@@ -351,6 +634,20 @@
     if (!ui.statsModal) return;
     ui.statsModal.hidden = true;
     ui.statsModal.setAttribute('aria-hidden', 'true');
+  }
+
+  function openTagsModal() {
+    if (!ui.tagsModal) return;
+    renderTagList();
+    ui.tagsModal.hidden = false;
+    ui.tagsModal.setAttribute('aria-hidden', 'false');
+    ui.tagNameInput?.focus();
+  }
+
+  function closeTagsModal() {
+    if (!ui.tagsModal) return;
+    ui.tagsModal.hidden = true;
+    ui.tagsModal.setAttribute('aria-hidden', 'true');
   }
 
   function handleKeyboardShortcuts(event) {
@@ -445,7 +742,11 @@
     }
     try {
       showToast('Syncing…');
-      await firebaseApi.upsertTasks(currentUser.uid, state.tasks);
+      const syncTasks = firebaseApi.upsertTasks(currentUser.uid, state.tasks);
+      const syncTags = state.tags.length
+        ? firebaseApi.upsertTags(currentUser.uid, state.tags)
+        : Promise.resolve();
+      await Promise.all([syncTasks, syncTags]);
       showToast('Sync complete.');
     } catch (error) {
       console.error('Manual sync failed', error);
@@ -468,6 +769,10 @@
       unsubscribeRemote();
       unsubscribeRemote = null;
     }
+    if (unsubscribeTags) {
+      unsubscribeTags();
+      unsubscribeTags = null;
+    }
   }
 
   function startRemoteSync(user) {
@@ -486,14 +791,38 @@
       },
     );
 
-    if (pendingGuestSnapshot.length) {
+    unsubscribeTags = firebaseApi.subscribeToTags(
+      user.uid,
+      (tags) => {
+        state.tags = Array.isArray(tags) ? tags.map(normalizeTag).filter(Boolean) : [];
+        persist();
+        render();
+      },
+      (error) => {
+        console.error('Realtime tag sync error', error);
+        showToast('Realtime tag sync failed.');
+      },
+    );
+
+    if (pendingGuestTasks.length) {
       firebaseApi
-        .upsertTasks(user.uid, pendingGuestSnapshot)
+        .upsertTasks(user.uid, pendingGuestTasks)
         .then(() => {
-          pendingGuestSnapshot = [];
+          pendingGuestTasks = [];
         })
         .catch((error) => {
           console.error('Failed to import guest tasks', error);
+        });
+    }
+
+    if (pendingGuestTags.length) {
+      firebaseApi
+        .upsertTags(user.uid, pendingGuestTags)
+        .then(() => {
+          pendingGuestTags = [];
+        })
+        .catch((error) => {
+          console.error('Failed to import guest tags', error);
         });
     }
   }
@@ -503,7 +832,8 @@
     updateUserUI(user);
     toggleUserMenu(false);
     if (user) {
-      pendingGuestSnapshot = state.tasks.map((task) => ({ ...task }));
+      pendingGuestTasks = state.tasks.map((task) => ({ ...task }));
+      pendingGuestTags = state.tags.map((tag) => ({ ...tag }));
       startRemoteSync(user);
     } else {
       stopRemoteSync();
@@ -532,8 +862,18 @@
       addTask(ui.newTaskInput.value);
     });
 
+    ui.taskTagSelect?.addEventListener('change', (event) => {
+      applyTagColorToSelect(ui.taskTagSelect, getTagById(event.target.value));
+    });
+
     ui.showCompletedInput.addEventListener('change', () => {
       state.showCompleted = ui.showCompletedInput.checked;
+      persist();
+      render();
+    });
+
+    ui.tagFilterSelect?.addEventListener('change', (event) => {
+      state.activeTagFilter = event.target.value;
       persist();
       render();
     });
@@ -550,6 +890,9 @@
     ui.resetButton.addEventListener('click', clearData);
     ui.statsButton.addEventListener('click', openStatsModal);
     ui.closeStatsButtons.forEach((button) => button.addEventListener('click', closeStatsModal));
+    ui.manageTagsButton?.addEventListener('click', openTagsModal);
+    ui.closeTagsButtons?.forEach((button) => button.addEventListener('click', closeTagsModal));
+    ui.tagForm?.addEventListener('submit', handleTagFormSubmit);
     document.addEventListener('keydown', handleKeyboardShortcuts);
 
     ui.userMenuButton.addEventListener('click', () => toggleUserMenu());
@@ -579,6 +922,7 @@
   }
 
   function init() {
+    renderTagColorPicker();
     render();
     bindEvents();
     initAuth();

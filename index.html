@@ -45,6 +45,10 @@
             maxlength="120"
             required
           />
+          <label class="sr-only" for="taskTag">Assign tag</label>
+          <select id="taskTag" name="tag">
+            <option value="">No tag</option>
+          </select>
           <button type="submit">Add</button>
         </form>
 
@@ -57,6 +61,15 @@
             <input id="sortImportant" type="checkbox" />
             <span>Important first</span>
           </label>
+          <label class="toggle">
+            <span>Filter by tag</span>
+            <select id="tagFilter">
+              <option value="all">All tags</option>
+            </select>
+          </label>
+          <button id="manageTags" class="ghost-button ghost-button--small" type="button">
+            🏷️ Manage tags
+          </button>
           <span class="shortcut-hint" aria-live="off">Press "n" to add quickly</span>
         </div>
 
@@ -120,12 +133,40 @@
       </div>
     </div>
 
+    <div class="modal" id="tagsModal" hidden aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="modal__dialog tags-dialog">
+        <button class="modal__close" type="button" data-close-tags aria-label="Close">&times;</button>
+        <h2>🏷️ Manage Tags</h2>
+        <p class="modal__subtitle">Organize tasks by project or context. Colors help them stand out.</p>
+        <ul class="tag-list" data-tag-list>
+          <li class="tag-list__empty">No tags yet. Add your first tag below.</li>
+        </ul>
+        <form id="tagForm" class="tag-form">
+          <label>
+            Tag name
+            <input id="tagName" name="tagName" type="text" maxlength="32" placeholder="e.g. Launch" required />
+          </label>
+          <fieldset class="tag-colors">
+            <legend>Pick a color</legend>
+            <div class="tag-colors__grid" data-tag-colors></div>
+          </fieldset>
+          <button type="submit">Add tag</button>
+        </form>
+      </div>
+    </div>
+
     <template id="taskTemplate">
       <li class="task">
         <label class="task__content">
           <input type="checkbox" />
           <span class="task__title"></span>
         </label>
+        <div class="task__tag-control">
+          <label class="sr-only">Tag</label>
+          <select class="task__tag-select" aria-label="Select tag">
+            <option value="">No tag</option>
+          </select>
+        </div>
         <button class="icon-button icon-button--important" type="button" aria-pressed="false" aria-label="Mark task as important">☆</button>
         <button class="icon-button" data-role="delete" type="button" aria-label="Delete task">✕</button>
       </li>

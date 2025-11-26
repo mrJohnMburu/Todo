@@ -10,6 +10,10 @@ Lightweight task manager with two focused contexts (Work and Personal). Built wi
 - Guest mode uses `localStorage`; signing in switches to Firebase-backed sync (Firestore + Auth)
 - User menu with manual "Sync now", reset, and sign-out controls
 - Responsive, minimalist UI designed for phones and desktops
+- Mark tasks as important and optionally sort so starred items stay on top
+- Assign a single, color-coded tag to each task, manage tags via a dedicated modal, and filter the list by tag
+- Drag-and-drop ordering within each tab (disabled when "Important first" sorting is active)
+- Stats modal with completed totals and global completion rate
 
 ## Tech Stack
 | Layer | Choice | Notes |
@@ -69,6 +73,7 @@ If you prefer a single Firebase workflow:
 - [x] Persist tasks in `localStorage`
 - [x] Add keyboard and accessibility enhancements
 - [x] Integrate Firebase auth modal + sync (mirrors Workout_app)
+- [x] Ship important-task sorting, per-task tags, and tag filtering
 - [ ] Polish styles and micro-animations
 - [ ] Document tests and QA checklist
 
