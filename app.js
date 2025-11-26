@@ -964,7 +964,7 @@
       ui.tagForm.addEventListener('submit', handleTagFormSubmit);
     }
     
-    document.addEventListener('keydown', handleKeyboardShortcuts);
+    // Keyboard shortcut for quick add removed per user request.
 
     ui.userMenuButton.addEventListener('click', () => toggleUserMenu());
     document.addEventListener('click', (event) => {
