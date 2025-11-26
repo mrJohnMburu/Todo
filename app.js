@@ -890,9 +890,19 @@
     ui.resetButton.addEventListener('click', clearData);
     ui.statsButton.addEventListener('click', openStatsModal);
     ui.closeStatsButtons.forEach((button) => button.addEventListener('click', closeStatsModal));
-    ui.manageTagsButton?.addEventListener('click', openTagsModal);
-    ui.closeTagsButtons?.forEach((button) => button.addEventListener('click', closeTagsModal));
-    ui.tagForm?.addEventListener('submit', handleTagFormSubmit);
+    
+    if (ui.manageTagsButton) {
+      ui.manageTagsButton.addEventListener('click', openTagsModal);
+    }
+    
+    if (ui.closeTagsButtons) {
+      ui.closeTagsButtons.forEach((button) => button.addEventListener('click', closeTagsModal));
+    }
+    
+    if (ui.tagForm) {
+      ui.tagForm.addEventListener('submit', handleTagFormSubmit);
+    }
+    
     document.addEventListener('keydown', handleKeyboardShortcuts);
 
     ui.userMenuButton.addEventListener('click', () => toggleUserMenu());
